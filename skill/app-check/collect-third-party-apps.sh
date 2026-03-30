@@ -66,6 +66,7 @@ get_app_version() {
 # Function to get latest version from various sources
 get_latest_version() {
     local app_name="$1"
+    local current_version="$2"
     local version=""
 
     # Try various APIs for version detection
@@ -89,9 +90,12 @@ get_latest_version() {
             [ -n "$version" ] && echo "$version" && return
             ;;
         "Google Chrome"|"Chrome")
-            # Use endoflife.date API which tracks official stable releases
-            version=$(curl -s --max-time 10 "https://endoflife.date/api/chrome.json" 2>/dev/null | jq -r '.[0].cycle // empty' 2>/dev/null)
-            [ -n "$version" ] && echo "$version" && return
+            # Extract major version from current version and query Chrome for Testing API
+            if [ -n "$current_version" ]; then
+                local major_version=$(echo "$current_version" | cut -d'.' -f1)
+                version=$(curl -s --max-time 10 "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone.json" 2>/dev/null | jq -r ".milestones[\"$major_version\"].version // empty" 2>/dev/null)
+                [ -n "$version" ] && echo "$version" && return
+            fi
             ;;
     esac
 
@@ -142,7 +146,7 @@ find /Applications -maxdepth 1 -type d -name "*.app" 2>/dev/null | while read ap
             install_source=$(get_install_source "$app")
             version=$(get_app_version "$app")
             echo "Fetching latest version for $app_name..." >&2
-            latest=$(get_latest_version "$app_name")
+            latest=$(get_latest_version "$app_name" "$version")
             echo "$app_name|$install_source|$version|$latest" >> "$TEMP_FILE"
             ((APP_COUNT++))
         fi
@@ -158,7 +162,7 @@ if [ -d "$HOME/Applications" ]; then
                 install_source=$(get_install_source "$app")
                 version=$(get_app_version "$app")
                 echo "Fetching latest version for $app_name..." >&2
-                latest=$(get_latest_version "$app_name")
+                latest=$(get_latest_version "$app_name" "$version")
                 echo "$app_name|$install_source|$version|$latest" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
@@ -178,7 +182,7 @@ if command -v brew &> /dev/null; then
                 if [ -n "$app_path" ] && [ -d "$app_path" ]; then
                     version=$(get_app_version "$app_path")
                     echo "Fetching latest version for $app..." >&2
-                    latest=$(get_latest_version "$app")
+                    latest=$(get_latest_version "$app" "$version")
                     echo "$app|Homebrew Cask|$version|$latest" >> "$TEMP_FILE"
                 fi
             fi
