@@ -89,8 +89,8 @@ get_latest_version() {
             [ -n "$version" ] && echo "$version" && return
             ;;
         "Google Chrome"|"Chrome")
-            # Use Chrome for Testing API which has reliable version data
-            version=$(curl -s --max-time 10 "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone.json" 2>/dev/null | jq -r '.milestones | to_entries | map(.value.version) | last // empty' 2>/dev/null)
+            # Use endoflife.date API which tracks official stable releases
+            version=$(curl -s --max-time 10 "https://endoflife.date/api/chrome.json" 2>/dev/null | jq -r '.[0].cycle // empty' 2>/dev/null)
             [ -n "$version" ] && echo "$version" && return
             ;;
     esac
