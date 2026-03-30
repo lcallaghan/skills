@@ -249,8 +249,13 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
     echo "  │              App                 │    Current     │     Latest     │       Status         │"
     echo "  ├──────────────────────────────────┼────────────────┼────────────────┼──────────────────────┤"
 
-    # Print each row
+    # Count total rows
+    total_rows=$(wc -l < "$SORTED_FILE")
+    row_count=0
+
+    # Print each row with horizontal separator
     while IFS='|' read app source version latest; do
+        ((row_count++))
         if [ "$latest" = "N/A" ]; then
             status="ℹ️  No check available"
         elif [ "$version" = "$latest" ]; then
@@ -259,6 +264,11 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
             status="⚠️  Update available"
         fi
         printf "  │ %-32s │ %-14s │ %-14s │ %-20s │\n" "$app" "$version" "$latest" "$status"
+
+        # Print separator between rows
+        if [ $row_count -lt $total_rows ]; then
+            echo "  ├──────────────────────────────────┼────────────────┼────────────────┼──────────────────────┤"
+        fi
     done < "$SORTED_FILE"
 
     echo "  └──────────────────────────────────┴────────────────┴────────────────┴──────────────────────┘"
