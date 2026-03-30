@@ -88,6 +88,11 @@ get_latest_version() {
             version=$(curl -s --max-time 10 "https://api.github.com/repos/jgraph/drawio/releases/latest" 2>/dev/null | jq -r '.tag_name // empty' 2>/dev/null | sed 's/^v//')
             [ -n "$version" ] && echo "$version" && return
             ;;
+        "Google Chrome"|"Chrome")
+            # Use Chrome for Testing API which has reliable version data
+            version=$(curl -s --max-time 10 "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone.json" 2>/dev/null | jq -r '.milestones | to_entries | map(.value.version) | last // empty' 2>/dev/null)
+            [ -n "$version" ] && echo "$version" && return
+            ;;
     esac
 
     echo "N/A"
