@@ -49,6 +49,28 @@ get_app_version() {
     fi
 }
 
+# Function to get the latest version from App Store
+get_latest_appstore_version() {
+    local app_name="$1"
+
+    # Query iTunes Search API for the app
+    local api_response=$(curl -s "https://itunes.apple.com/search?term=$(echo "$app_name" | tr ' ' '+')&country=US&entity=software&limit=1" 2>/dev/null)
+
+    if [ -z "$api_response" ]; then
+        echo "N/A"
+        return
+    fi
+
+    # Extract version from JSON response (look for "version" field)
+    local latest_version=$(echo "$api_response" | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+    if [ -z "$latest_version" ]; then
+        echo "N/A"
+    else
+        echo "$latest_version"
+    fi
+}
+
 # Search in /Applications
 if [ -d "/Applications" ]; then
     echo "Scanning /Applications..."
@@ -57,7 +79,9 @@ if [ -d "/Applications" ]; then
             if is_appstore_app "$app"; then
                 app_name=$(basename "$app" .app)
                 version=$(get_app_version "$app")
-                echo "$app_name|$version" >> "$TEMP_FILE"
+                echo "Fetching latest version for $app_name..." >&2
+                latest_version=$(get_latest_appstore_version "$app_name")
+                echo "$app_name|$version|$latest_version" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
         fi
@@ -72,7 +96,9 @@ if [ -d "$HOME/Applications" ]; then
             if is_appstore_app "$app"; then
                 app_name=$(basename "$app" .app)
                 version=$(get_app_version "$app")
-                echo "$app_name|$version" >> "$TEMP_FILE"
+                echo "Fetching latest version for $app_name..." >&2
+                latest_version=$(get_latest_appstore_version "$app_name")
+                echo "$app_name|$version|$latest_version" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
         fi
@@ -85,10 +111,10 @@ echo "Found $APP_COUNT App Store applications:"
 echo "========================================"
 if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
     echo ""
-    echo "Application Name                          | Version"
-    echo "------------------------------------------|------------------"
-    sort "$TEMP_FILE" | uniq | while IFS='|' read name version; do
-        printf "%-40s | %s\n" "$name" "$version"
+    echo "Application Name                          | Current | Latest"
+    echo "------------------------------------------|---------|----------"
+    sort "$TEMP_FILE" | uniq | while IFS='|' read name version latest; do
+        printf "%-40s | %-7s | %s\n" "$name" "$version" "$latest"
     done
 else
     echo "No App Store applications detected."
@@ -103,10 +129,10 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
         echo ""
         echo "Total Found: $APP_COUNT"
         echo ""
-        echo "Application Name                          | Version"
-        echo "------------------------------------------|------------------"
-        sort "$TEMP_FILE" | uniq | while IFS='|' read name version; do
-            printf "%-40s | %s\n" "$name" "$version"
+        echo "Application Name                          | Current | Latest"
+        echo "------------------------------------------|---------|----------"
+        sort "$TEMP_FILE" | uniq | while IFS='|' read name version latest; do
+            printf "%-40s | %-7s | %s\n" "$name" "$version" "$latest"
         done
     } > "$OUTPUT_FILE"
     echo ""

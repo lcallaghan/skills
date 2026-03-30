@@ -63,6 +63,50 @@ get_app_version() {
     fi
 }
 
+# Function to get latest version from various sources
+get_latest_version() {
+    local app_name="$1"
+
+    # Try GitHub API for common open-source apps (with timeout and retry)
+    case "$app_name" in
+        "Visual Studio Code"|"Code")
+            local vs_version=$(timeout 3 curl -s "https://api.github.com/repos/microsoft/vscode/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
+            [ -n "$vs_version" ] && echo "$vs_version" && return
+            ;;
+        "Firefox")
+            local ff_version=$(timeout 3 curl -s "https://api.mozilla.org/2/firefox/versions/" 2>/dev/null | grep -o '"version":"[^"]*"' | cut -d'"' -f4 | head -1)
+            [ -n "$ff_version" ] && echo "$ff_version" && return
+            ;;
+        "Docker")
+            local docker_version=$(timeout 3 curl -s "https://api.github.com/repos/docker/docker-ce/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
+            [ -n "$docker_version" ] && echo "$docker_version" && return
+            ;;
+        "Google Chrome"|"Chrome")
+            local chrome_version=$(timeout 3 curl -s "https://omahaproxy.appspot.com/all.json" 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
+            [ -n "$chrome_version" ] && echo "$chrome_version" && return
+            ;;
+        "draw.io")
+            local draw_version=$(timeout 3 curl -s "https://api.github.com/repos/jgraph/drawio/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
+            [ -n "$draw_version" ] && echo "$draw_version" && return
+            ;;
+        "Slack")
+            local slack_version=$(timeout 3 curl -s "https://api.github.com/repos/slackhq/slack-cli/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
+            [ -n "$slack_version" ] && echo "$slack_version" && return
+            ;;
+    esac
+
+    # Try Homebrew cask information as fallback
+    if command -v brew &> /dev/null; then
+        local brew_version=$(timeout 3 brew info --cask "$app_name" 2>/dev/null | grep "^$app_name:" | sed 's/.*: //' | head -1)
+        if [ -n "$brew_version" ]; then
+            echo "$brew_version"
+            return
+        fi
+    fi
+
+    echo "N/A"
+}
+
 # Function to detect installation source
 get_install_source() {
     local app_path="$1"
@@ -106,7 +150,9 @@ find /Applications -maxdepth 1 -type d -name "*.app" 2>/dev/null | while read ap
             app_name=$(basename "$app" .app)
             install_source=$(get_install_source "$app")
             version=$(get_app_version "$app")
-            echo "$app_name|$install_source|$version" >> "$TEMP_FILE"
+            echo "Fetching latest version for $app_name..." >&2
+            latest=$(get_latest_version "$app_name")
+            echo "$app_name|$install_source|$version|$latest" >> "$TEMP_FILE"
             ((APP_COUNT++))
         fi
     fi
@@ -120,7 +166,9 @@ if [ -d "$HOME/Applications" ]; then
                 app_name=$(basename "$app" .app)
                 install_source=$(get_install_source "$app")
                 version=$(get_app_version "$app")
-                echo "$app_name|$install_source|$version" >> "$TEMP_FILE"
+                echo "Fetching latest version for $app_name..." >&2
+                latest=$(get_latest_version "$app_name")
+                echo "$app_name|$install_source|$version|$latest" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
         fi
@@ -138,7 +186,9 @@ if command -v brew &> /dev/null; then
                 app_path=$(find "$(brew --prefix)/Caskroom" -maxdepth 2 -type d -name "$app.app" 2>/dev/null | head -1)
                 if [ -n "$app_path" ] && [ -d "$app_path" ]; then
                     version=$(get_app_version "$app_path")
-                    echo "$app|Homebrew Cask|$version" >> "$TEMP_FILE"
+                    echo "Fetching latest version for $app..." >&2
+                    latest=$(get_latest_version "$app")
+                    echo "$app|Homebrew Cask|$version|$latest" >> "$TEMP_FILE"
                 fi
             fi
         fi
@@ -159,11 +209,11 @@ echo "=========================================="
 echo ""
 
 if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
-    # Sort and display with sources and versions
-    echo "Application Name                          | Installation Source    | Version"
-    echo "------------------------------------------|------------------------|------------------"
-    sort -u "$TEMP_FILE" | while IFS='|' read app source version; do
-        printf "%-40s | %-24s | %s\n" "$app" "$source" "$version"
+    # Sort and display with sources, versions, and latest
+    echo "Application Name                          | Source      | Current | Latest"
+    echo "------------------------------------------|-------------|---------|----------"
+    sort -u "$TEMP_FILE" | while IFS='|' read app source version latest; do
+        printf "%-40s | %-11s | %-7s | %s\n" "$app" "$source" "$version" "$latest"
     done
 else
     echo "No third-party applications detected."
@@ -178,10 +228,10 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
         echo ""
         echo "Total Found: $APP_COUNT"
         echo ""
-        echo "Application Name                          | Installation Source    | Version"
-        echo "------------------------------------------|------------------------|------------------"
-        sort -u "$TEMP_FILE" | while IFS='|' read app source version; do
-            printf "%-40s | %-24s | %s\n" "$app" "$source" "$version"
+        echo "Application Name                          | Source      | Current | Latest"
+        echo "------------------------------------------|-------------|---------|----------"
+        sort -u "$TEMP_FILE" | while IFS='|' read app source version latest; do
+            printf "%-40s | %-11s | %-7s | %s\n" "$app" "$source" "$version" "$latest"
         done
     } > "$OUTPUT_FILE"
 
