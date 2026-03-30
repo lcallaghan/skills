@@ -45,6 +45,24 @@ is_appstore_app() {
     return 1
 }
 
+# Function to get app version
+get_app_version() {
+    local app_path="$1"
+    local info_plist="$app_path/Contents/Info.plist"
+
+    if [ -f "$info_plist" ]; then
+        # Try to get the short version string first
+        local version=$(plutil -extract "CFBundleShortVersionString" raw "$info_plist" 2>/dev/null)
+        if [ -z "$version" ] || [ "$version" = "null" ]; then
+            # Fall back to bundle version
+            version=$(plutil -extract "CFBundleVersion" raw "$info_plist" 2>/dev/null)
+        fi
+        echo "$version"
+    else
+        echo "Unknown"
+    fi
+}
+
 # Function to detect installation source
 get_install_source() {
     local app_path="$1"
@@ -87,7 +105,8 @@ find /Applications -maxdepth 1 -type d -name "*.app" 2>/dev/null | while read ap
         if ! is_appstore_app "$app"; then
             app_name=$(basename "$app" .app)
             install_source=$(get_install_source "$app")
-            echo "$app_name|$install_source" >> "$TEMP_FILE"
+            version=$(get_app_version "$app")
+            echo "$app_name|$install_source|$version" >> "$TEMP_FILE"
             ((APP_COUNT++))
         fi
     fi
@@ -100,7 +119,8 @@ if [ -d "$HOME/Applications" ]; then
             if ! is_appstore_app "$app"; then
                 app_name=$(basename "$app" .app)
                 install_source=$(get_install_source "$app")
-                echo "$app_name|$install_source" >> "$TEMP_FILE"
+                version=$(get_app_version "$app")
+                echo "$app_name|$install_source|$version" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
         fi
@@ -117,7 +137,8 @@ if command -v brew &> /dev/null; then
                 # Look for it in brew locations
                 app_path=$(find "$(brew --prefix)/Caskroom" -maxdepth 2 -type d -name "$app.app" 2>/dev/null | head -1)
                 if [ -n "$app_path" ] && [ -d "$app_path" ]; then
-                    echo "$app|Homebrew Cask" >> "$TEMP_FILE"
+                    version=$(get_app_version "$app_path")
+                    echo "$app|Homebrew Cask|$version" >> "$TEMP_FILE"
                 fi
             fi
         fi
@@ -138,11 +159,11 @@ echo "=========================================="
 echo ""
 
 if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
-    # Sort and display with sources
-    echo "Application Name                          | Installation Source"
-    echo "------------------------------------------|--------------------"
-    sort -u "$TEMP_FILE" | while IFS='|' read app source; do
-        printf "%-40s | %s\n" "$app" "$source"
+    # Sort and display with sources and versions
+    echo "Application Name                          | Installation Source    | Version"
+    echo "------------------------------------------|------------------------|------------------"
+    sort -u "$TEMP_FILE" | while IFS='|' read app source version; do
+        printf "%-40s | %-24s | %s\n" "$app" "$source" "$version"
     done
 else
     echo "No third-party applications detected."
@@ -157,10 +178,10 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
         echo ""
         echo "Total Found: $APP_COUNT"
         echo ""
-        echo "Application Name                          | Installation Source"
-        echo "------------------------------------------|--------------------"
-        sort -u "$TEMP_FILE" | while IFS='|' read app source; do
-            printf "%-40s | %s\n" "$app" "$source"
+        echo "Application Name                          | Installation Source    | Version"
+        echo "------------------------------------------|------------------------|------------------"
+        sort -u "$TEMP_FILE" | while IFS='|' read app source version; do
+            printf "%-40s | %-24s | %s\n" "$app" "$source" "$version"
         done
     } > "$OUTPUT_FILE"
 

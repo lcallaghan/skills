@@ -31,6 +31,24 @@ is_appstore_app() {
     return 1
 }
 
+# Function to get app version
+get_app_version() {
+    local app_path="$1"
+    local info_plist="$app_path/Contents/Info.plist"
+
+    if [ -f "$info_plist" ]; then
+        # Try to get the short version string first
+        local version=$(plutil -extract "CFBundleShortVersionString" raw "$info_plist" 2>/dev/null)
+        if [ -z "$version" ] || [ "$version" = "null" ]; then
+            # Fall back to bundle version
+            version=$(plutil -extract "CFBundleVersion" raw "$info_plist" 2>/dev/null)
+        fi
+        echo "$version"
+    else
+        echo "Unknown"
+    fi
+}
+
 # Search in /Applications
 if [ -d "/Applications" ]; then
     echo "Scanning /Applications..."
@@ -38,7 +56,8 @@ if [ -d "/Applications" ]; then
         if [ -e "$app" ]; then
             if is_appstore_app "$app"; then
                 app_name=$(basename "$app" .app)
-                echo "$app_name" >> "$TEMP_FILE"
+                version=$(get_app_version "$app")
+                echo "$app_name|$version" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
         fi
@@ -52,7 +71,8 @@ if [ -d "$HOME/Applications" ]; then
         if [ -e "$app" ]; then
             if is_appstore_app "$app"; then
                 app_name=$(basename "$app" .app)
-                echo "$app_name" >> "$TEMP_FILE"
+                version=$(get_app_version "$app")
+                echo "$app_name|$version" >> "$TEMP_FILE"
                 ((APP_COUNT++))
             fi
         fi
@@ -64,7 +84,12 @@ echo ""
 echo "Found $APP_COUNT App Store applications:"
 echo "========================================"
 if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
-    sort "$TEMP_FILE" | uniq
+    echo ""
+    echo "Application Name                          | Version"
+    echo "------------------------------------------|------------------"
+    sort "$TEMP_FILE" | uniq | while IFS='|' read name version; do
+        printf "%-40s | %s\n" "$name" "$version"
+    done
 else
     echo "No App Store applications detected."
 fi
@@ -78,7 +103,11 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
         echo ""
         echo "Total Found: $APP_COUNT"
         echo ""
-        sort "$TEMP_FILE" | uniq
+        echo "Application Name                          | Version"
+        echo "------------------------------------------|------------------"
+        sort "$TEMP_FILE" | uniq | while IFS='|' read name version; do
+            printf "%-40s | %s\n" "$name" "$version"
+        done
     } > "$OUTPUT_FILE"
     echo ""
     echo "Results saved to: $OUTPUT_FILE"
