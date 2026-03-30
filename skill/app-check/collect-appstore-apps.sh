@@ -127,20 +127,34 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
     echo "Results saved to: $OUTPUT_FILE"
 fi
 
-# Display summary with status
+# Display summary table with status
 echo ""
-echo "=========================================="
-echo "Summary: App Store Update Status"
-echo "=========================================="
+echo "App Store Update Status:"
 echo ""
+
 if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
-    sort "$TEMP_FILE" | uniq | while IFS='|' read name version latest; do
+    # Create temporary file for table data
+    SORTED_FILE=$(mktemp)
+    sort "$TEMP_FILE" | uniq > "$SORTED_FILE"
+
+    # Print table header
+    echo "  ┌──────────────────────────────────┬────────────────┬────────────────┬──────────────────────┐"
+    echo "  │              App                 │    Current     │     Latest     │       Status         │"
+    echo "  ├──────────────────────────────────┼────────────────┼────────────────┼──────────────────────┤"
+
+    # Print each row
+    while IFS='|' read name version latest; do
         if [ "$version" = "$latest" ]; then
-            echo "✓ $name — $version (up to date)"
+            status="✓ Up to date"
         else
-            echo "⚠️  $name — $version (latest: $latest)"
+            status="⚠️  Update available"
         fi
-    done
+        printf "  │ %-32s │ %-14s │ %-14s │ %-20s │\n" "$name" "$version" "$latest" "$status"
+    done < "$SORTED_FILE"
+
+    echo "  └──────────────────────────────────┴────────────────┴────────────────┴──────────────────────┘"
+
+    rm -f "$SORTED_FILE"
 fi
 
 # Cleanup
