@@ -81,10 +81,9 @@ get_latest_version() {
             [ -n "$version" ] && echo "$version" && return
             ;;
         "Docker")
-            # Docker Desktop uses different versioning than Docker Engine (moby/moby)
-            # Docker Desktop versions (e.g., 4.65.0) don't map directly to Engine versions (e.g., 29.x)
-            # No reliable public API for Docker Desktop version, so marking as N/A
-            echo "N/A" && return
+            # Docker Desktop versions from official release notes page
+            version=$(curl -s --max-time 10 "https://docs.docker.com/desktop/release-notes/" 2>/dev/null | tr '>' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/[^0-9.].*//')
+            [ -n "$version" ] && echo "$version" && return
             ;;
         "draw.io")
             version=$(curl -s --max-time 10 "https://api.github.com/repos/jgraph/drawio/releases/latest" 2>/dev/null | jq -r '.tag_name // empty' 2>/dev/null | sed 's/^v//')
