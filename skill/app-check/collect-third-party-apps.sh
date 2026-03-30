@@ -66,43 +66,29 @@ get_app_version() {
 # Function to get latest version from various sources
 get_latest_version() {
     local app_name="$1"
+    local version=""
 
-    # Try GitHub API for common open-source apps (with timeout and retry)
+    # Try various APIs for version detection
     case "$app_name" in
         "Visual Studio Code"|"Code")
-            local vs_version=$(timeout 3 curl -s "https://api.github.com/repos/microsoft/vscode/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
-            [ -n "$vs_version" ] && echo "$vs_version" && return
+            version=$(curl -s --max-time 10 "https://api.github.com/repos/microsoft/vscode/releases/latest" 2>/dev/null | jq -r '.tag_name // empty' 2>/dev/null | sed 's/^v//')
+            [ -n "$version" ] && echo "$version" && return
             ;;
         "Firefox")
-            local ff_version=$(timeout 3 curl -s "https://api.mozilla.org/2/firefox/versions/" 2>/dev/null | grep -o '"version":"[^"]*"' | cut -d'"' -f4 | head -1)
-            [ -n "$ff_version" ] && echo "$ff_version" && return
+            # Firefox - use Mozilla product details API
+            version=$(curl -s --max-time 10 "https://product-details.mozilla.org/1.0/firefox_versions.json" 2>/dev/null | jq -r '.LATEST_FIREFOX_VERSION // empty' 2>/dev/null)
+            [ -n "$version" ] && echo "$version" && return
             ;;
         "Docker")
-            local docker_version=$(timeout 3 curl -s "https://api.github.com/repos/docker/docker-ce/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
-            [ -n "$docker_version" ] && echo "$docker_version" && return
-            ;;
-        "Google Chrome"|"Chrome")
-            local chrome_version=$(timeout 3 curl -s "https://omahaproxy.appspot.com/all.json" 2>/dev/null | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
-            [ -n "$chrome_version" ] && echo "$chrome_version" && return
+            # Docker moved to moby/moby repo
+            version=$(curl -s --max-time 10 "https://api.github.com/repos/moby/moby/releases/latest" 2>/dev/null | jq -r '.tag_name // empty' 2>/dev/null | sed 's/^docker-v//' | sed 's/-.*//')
+            [ -n "$version" ] && echo "$version" && return
             ;;
         "draw.io")
-            local draw_version=$(timeout 3 curl -s "https://api.github.com/repos/jgraph/drawio/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
-            [ -n "$draw_version" ] && echo "$draw_version" && return
-            ;;
-        "Slack")
-            local slack_version=$(timeout 3 curl -s "https://api.github.com/repos/slackhq/slack-cli/releases/latest" 2>/dev/null | grep -o '"tag_name":"[^"]*"' | cut -d'"' -f4 | sed 's/^v//' | head -1)
-            [ -n "$slack_version" ] && echo "$slack_version" && return
+            version=$(curl -s --max-time 10 "https://api.github.com/repos/jgraph/drawio/releases/latest" 2>/dev/null | jq -r '.tag_name // empty' 2>/dev/null | sed 's/^v//')
+            [ -n "$version" ] && echo "$version" && return
             ;;
     esac
-
-    # Try Homebrew cask information as fallback
-    if command -v brew &> /dev/null; then
-        local brew_version=$(timeout 3 brew info --cask "$app_name" 2>/dev/null | grep "^$app_name:" | sed 's/.*: //' | head -1)
-        if [ -n "$brew_version" ]; then
-            echo "$brew_version"
-            return
-        fi
-    fi
 
     echo "N/A"
 }

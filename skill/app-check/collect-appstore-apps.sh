@@ -53,22 +53,10 @@ get_app_version() {
 get_latest_appstore_version() {
     local app_name="$1"
 
-    # Query iTunes Search API for the app
-    local api_response=$(curl -s "https://itunes.apple.com/search?term=$(echo "$app_name" | tr ' ' '+')&country=US&entity=software&limit=1" 2>/dev/null)
-
-    if [ -z "$api_response" ]; then
-        echo "N/A"
-        return
-    fi
-
-    # Extract version from JSON response (look for "version" field)
-    local latest_version=$(echo "$api_response" | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
-
-    if [ -z "$latest_version" ]; then
-        echo "N/A"
-    else
-        echo "$latest_version"
-    fi
+    # Query iTunes Search API for the app (use curl's timeout option)
+    curl -s --max-time 10 "https://itunes.apple.com/search?term=$(echo "$app_name" | tr ' ' '+')&country=US&entity=software&limit=1" 2>/dev/null | \
+        jq -r '.results[0].version' 2>/dev/null | \
+        grep -v "null" || echo "N/A"
 }
 
 # Search in /Applications
