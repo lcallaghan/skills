@@ -1,0 +1,23 @@
+{
+  "skill_name": "vendor-research",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We're a 10-person healthcare startup and our SIEM situation is a mess — we've been scraping by with a free tier on one tool and it's not cutting it for HIPAA. I need to figure out what SIEM options actually give us decent security features on a Pro or Team plan without forcing us into a $50k/year enterprise contract. We use Okta for identity and ServiceNow for tickets. What should we be looking at?",
+      "expected_output": "A structured vendor comparison of SIEM solutions evaluated at the Pro/Team tier for a 10-person company, highlighting HIPAA compliance features available without Enterprise pricing, Okta/ServiceNow integration, and which vendors lock critical security features behind higher tiers.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We're a small fintech team (10 engineers) and need an API gateway. Running on AWS. My big concern is that a lot of these tools seem to put SSO and audit logs behind enterprise plans, and we can't justify enterprise pricing for 10 people. Need strong auth, rate limiting, and the API docs need to be good because we don't have a dedicated platform team. What are our options?",
+      "expected_output": "A vendor comparison of API gateway platforms focused on a 10-person fintech team, with specific callouts on which security features (SSO, audit logs) are available at Pro/Team pricing, AWS compatibility, and self-service friendliness given no dedicated platform team.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "looking at password managers for our company, 10 people. right now everyone's just using personal 1password accounts which is obviously not great from a security standpoint. i want something with proper admin controls and ideally SSO but i keep seeing SSO is enterprise-only on most of these tools which is frustrating. what's actually out there that won't break the bank but still gives us real security?",
+      "expected_output": "A vendor comparison of business password managers evaluated at the Pro/Team/Business tier for 10 users, with explicit focus on which vendors include SSO, admin controls, and audit logging at non-Enterprise pricing tiers, and realistic monthly/annual costs.",
+      "files": []
+    }
+  ]
+}
