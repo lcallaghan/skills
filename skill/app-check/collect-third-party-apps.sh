@@ -234,6 +234,24 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
     echo "Results saved to: $OUTPUT_FILE"
 fi
 
+# Display summary with status
+echo ""
+echo "=========================================="
+echo "Summary: Third-Party Apps Update Status"
+echo "=========================================="
+echo ""
+if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
+    sort -u "$TEMP_FILE" | while IFS='|' read app source version latest; do
+        if [ "$latest" = "N/A" ]; then
+            echo "ℹ️  $app — $version (no version check available)"
+        elif [ "$version" = "$latest" ]; then
+            echo "✓ $app — $version (up to date)"
+        else
+            echo "⚠️  $app — $version (latest: $latest)"
+        fi
+    done
+fi
+
 # Cleanup
 rm -f "$TEMP_FILE"
 

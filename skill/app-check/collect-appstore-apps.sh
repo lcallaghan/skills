@@ -127,6 +127,22 @@ if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
     echo "Results saved to: $OUTPUT_FILE"
 fi
 
+# Display summary with status
+echo ""
+echo "=========================================="
+echo "Summary: App Store Update Status"
+echo "=========================================="
+echo ""
+if [ -f "$TEMP_FILE" ] && [ -s "$TEMP_FILE" ]; then
+    sort "$TEMP_FILE" | uniq | while IFS='|' read name version latest; do
+        if [ "$version" = "$latest" ]; then
+            echo "✓ $name — $version (up to date)"
+        else
+            echo "⚠️  $name — $version (latest: $latest)"
+        fi
+    done
+fi
+
 # Cleanup
 rm -f "$TEMP_FILE"
 
