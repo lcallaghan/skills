@@ -97,6 +97,11 @@ get_latest_version() {
                 [ -n "$version" ] && echo "$version" && return
             fi
             ;;
+        "1Password")
+            # 1Password stable release version
+            version=$(curl -s --max-time 10 "https://releases.1password.com/mac/stable/" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            [ -n "$version" ] && echo "$version" && return
+            ;;
     esac
 
     echo "N/A"

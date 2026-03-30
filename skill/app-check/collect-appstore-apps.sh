@@ -53,6 +53,12 @@ get_app_version() {
 get_latest_appstore_version() {
     local app_name="$1"
 
+    # Special case for 1Password for Safari - use 1Password releases API
+    if [ "$app_name" = "1Password for Safari" ]; then
+        local version=$(curl -s --max-time 10 "https://releases.1password.com/mac/stable/" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        [ -n "$version" ] && echo "$version" && return
+    fi
+
     # Query iTunes Search API for the app (use curl's timeout option)
     curl -s --max-time 10 "https://itunes.apple.com/search?term=$(echo "$app_name" | tr ' ' '+')&country=US&entity=software&limit=1" 2>/dev/null | \
         jq -r '.results[0].version' 2>/dev/null | \
