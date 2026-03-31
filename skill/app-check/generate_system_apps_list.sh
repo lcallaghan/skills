@@ -5,6 +5,7 @@
 
 INVENTORY_FILE="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/full_application_inventory.txt"
 OUTPUT_FILE="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/outapps.txt"
+OUTPUT_NO_SYSTEM="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/output-nosystem.txt"
 
 echo "Generating System Applications List..."
 echo ""
@@ -97,6 +98,39 @@ APP_COUNT=$(wc -l < "$SORTED_FILE")
     fi
 } > "$OUTPUT_FILE"
 
+# Generate output file without system applications
+echo "Creating inventory file without system applications..."
+{
+    # Read the inventory file and remove SYSTEM APPLICATIONS section and all related content
+    awk '
+    BEGIN {
+        in_system_section = 0
+    }
+    /^=== SYSTEM APPLICATIONS/ {
+        # Found the start of the SYSTEM APPLICATIONS section, skip until next section header
+        in_system_section = 1
+        next
+    }
+    /^=== SYSTEM LIBRARY APPS/ {
+        # Found the next section, print it and continue normally
+        in_system_section = 0
+        print
+        next
+    }
+    in_system_section {
+        # Skip everything in the SYSTEM APPLICATIONS section
+        next
+    }
+    /^\/System\/Applications\// {
+        # Skip any lines starting with /System/Applications (the detailed listing)
+        next
+    }
+    {
+        print
+    }
+    ' "$INVENTORY_FILE"
+} > "$OUTPUT_NO_SYSTEM"
+
 # Display results
 echo ""
 echo "=========================================="
@@ -105,13 +139,14 @@ echo "=========================================="
 echo ""
 echo "Total SYSTEM APPLICATIONS found: $APP_COUNT"
 echo "Output file: $OUTPUT_FILE"
+echo "Output file (no system apps): $OUTPUT_NO_SYSTEM"
 echo ""
 
 # Clean up
 rm -f "$TEMP_FILE" "$OTHER_APPS_TEMP" "$SORTED_FILE"
 
 # Display the output
-echo "Preview of generated file:"
+echo "Preview of generated file (outapps.txt):"
 echo ""
 head -30 "$OUTPUT_FILE"
 echo "..."
