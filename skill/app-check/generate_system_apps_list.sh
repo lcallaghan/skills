@@ -4,14 +4,16 @@
 # and scan for additional system applications
 
 INVENTORY_FILE="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/full_application_inventory.txt"
-OUTPUT_FILE="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/outapps.txt"
 OUTPUT_NO_SYSTEM="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/output-nosystem.txt"
+OUTPUT_FILE="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/outapps.txt"
+OUTPUT_APPS_LIBRARY="/Users/lancecallaghan/Cowork-Skill/skills/skill/app-check/output-nosystem-apps-library.txt"
 
 echo "Generating System Applications List..."
 echo ""
 
-# Temporary file for storing all bundles
+# Temporary files for storing all bundles
 TEMP_FILE=$(mktemp)
+TEMP_LIBRARY_FILE=$(mktemp)
 
 # Extract SYSTEM APPLICATIONS from inventory file
 echo "Reading system applications from inventory file..."
@@ -33,6 +35,10 @@ echo "Scanning /System/Applications/Utilities for bundles..."
 if [ -d "/System/Applications/Utilities" ]; then
     find "/System/Applications/Utilities" -maxdepth 1 -type d -name "*.app" | sort >> "$TEMP_FILE"
 fi
+
+# Extract System Library applications from output-nosystem.txt
+echo "Extracting System Library applications from inventory..."
+grep "^/System/Library.*\.\(app\|bundle\|framework\|docktileplugin\)$" "$OUTPUT_NO_SYSTEM" | sort -u >> "$TEMP_LIBRARY_FILE"
 
 # Scan for other directories under /System/Applications (besides known system folders)
 echo "Scanning for other directories under /System/Applications..."
@@ -69,10 +75,14 @@ done
 SORTED_FILE=$(mktemp)
 sort -u "$TEMP_FILE" > "$SORTED_FILE"
 
+SORTED_LIBRARY_FILE=$(mktemp)
+sort -u "$TEMP_LIBRARY_FILE" > "$SORTED_LIBRARY_FILE"
+
 # Count applications
 APP_COUNT=$(wc -l < "$SORTED_FILE")
+LIBRARY_APP_COUNT=$(wc -l < "$SORTED_LIBRARY_FILE" 2>/dev/null)
 
-# Generate output file
+# Generate output file with System Applications and System Library Applications
 {
     echo "====================================================================================="
     echo "=== SYSTEM APPLICATIONS (/System/Applications) and /System/Applications/Utilities ==="
@@ -80,6 +90,16 @@ APP_COUNT=$(wc -l < "$SORTED_FILE")
     echo ""
     cat "$SORTED_FILE"
     echo ""
+
+    # Add System Library Applications section if any exist
+    if [ "$LIBRARY_APP_COUNT" -gt 0 ]; then
+        echo "=================================================="
+        echo "=== SYSTEM LIBRARY APPLICATIONS (/System/Library) ==="
+        echo "=================================================="
+        echo ""
+        cat "$SORTED_LIBRARY_FILE"
+        echo ""
+    fi
 
     # Check if there are other applications
     OTHER_APP_COUNT=$(wc -l < "$OTHER_APPS_TEMP" 2>/dev/null | awk '{print $1}')
@@ -131,6 +151,45 @@ echo "Creating inventory file without system applications..."
     ' "$INVENTORY_FILE"
 } > "$OUTPUT_NO_SYSTEM"
 
+# Generate output file without system applications AND system library applications
+echo "Creating inventory file without system applications and library applications..."
+{
+    # Read the inventory file and remove both SYSTEM APPLICATIONS and SYSTEM LIBRARY APPS sections
+    awk '
+    BEGIN {
+        in_system_app_section = 0
+        in_system_library_section = 0
+    }
+    /^=== SYSTEM APPLICATIONS/ {
+        in_system_app_section = 1
+        next
+    }
+    /^=== SYSTEM LIBRARY APPS/ {
+        # Switch from system applications to system library section
+        in_system_app_section = 0
+        in_system_library_section = 1
+        next
+    }
+    /^=== CORE SERVICES/ {
+        # Found the next section after library, print it and continue normally
+        in_system_library_section = 0
+        print
+        next
+    }
+    in_system_app_section || in_system_library_section {
+        # Skip everything in both sections
+        next
+    }
+    /^\/System\/Applications\// || /^\/System\/Library\// {
+        # Skip any lines starting with /System/Applications or /System/Library (the detailed listings)
+        next
+    }
+    {
+        print
+    }
+    ' "$INVENTORY_FILE"
+} > "$OUTPUT_APPS_LIBRARY"
+
 # Display results
 echo ""
 echo "=========================================="
@@ -138,12 +197,16 @@ echo "Generation Complete"
 echo "=========================================="
 echo ""
 echo "Total SYSTEM APPLICATIONS found: $APP_COUNT"
-echo "Output file: $OUTPUT_FILE"
-echo "Output file (no system apps): $OUTPUT_NO_SYSTEM"
+echo "Total SYSTEM LIBRARY APPLICATIONS found: $LIBRARY_APP_COUNT"
+echo ""
+echo "Output files:"
+echo "  - $OUTPUT_FILE (all system apps)"
+echo "  - $OUTPUT_NO_SYSTEM (no system apps)"
+echo "  - $OUTPUT_APPS_LIBRARY (no system or library apps)"
 echo ""
 
 # Clean up
-rm -f "$TEMP_FILE" "$OTHER_APPS_TEMP" "$SORTED_FILE"
+rm -f "$TEMP_FILE" "$OTHER_APPS_TEMP" "$SORTED_FILE" "$TEMP_LIBRARY_FILE" "$SORTED_LIBRARY_FILE"
 
 # Display the output
 echo "Preview of generated file (outapps.txt):"
